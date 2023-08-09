@@ -97,10 +97,27 @@ class ApplicationStack(Stack):
 
     self.dms_role = iam.Role(self,
                              id=f"{cf.namespace}_dms_role",
-                             assumed_by=iam.ServicePrincipal(f"dms.{Aws.REGION}.amazonaws.com")
-                             )
-    self.dms_role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonKinesisFullAccess"))
-    self.dms_role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("SecretsManagerReadWrite"))
+                             assumed_by=iam.ServicePrincipal(f"dms.{Aws.REGION}.amazonaws.com"),
+                             inline_policies={
+                                                "Policy_KMS": iam.PolicyDocument(statements=[
+                                                              iam.PolicyStatement(effect=iam.Effect.ALLOW,
+                                                              principals=[f"dms.{Aws.REGION}.amazonaws.com"],
+                                                              resources=[f"arn:aws:kms:{Aws.REGION}:{Aws.ACCOUNT_ID}:*"],
+                                                              actions=["kms:Encrypt",
+                                                                       "kms:Decrypt",
+                                                                       "kms:ReEncrypt",
+                                                                       "kms:GenerateDataKey",
+                                                                       "kms:DescribeKey"])]),
+                                                "Policy_KINESIS": iam.PolicyDocument(statements=[
+                                                                  iam.PolicyStatement(effect=iam.Effect.ALLOW,
+                                                                     principals=[f"com.amazonaws.{Aws.REGION}.kinesis-streams"],
+                                                                     resources=[f"arn:aws:kms:{Aws.REGION}:{Aws.ACCOUNT_ID}:*"],
+                                                                     actions=["kinesis:PutRecords",
+                                                                              "kinesis:DescribeStream"])]),
+                                            })
+
+    # self.dms_role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonKinesisFullAccess"))
+    # self.dms_role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("SecretsManagerReadWrite"))
     
     if cf.create_dms_service_role:
       dms_vpc_role = iam.Role(self,
