@@ -137,12 +137,12 @@ class ApplicationStack(Stack):
                                                      )
                                                      )
 
-        self.dms_role.add_to_policy(aws_iam.PolicyStatement(
+        self.dms_role.add_to_policy(iam.PolicyStatement(
             resources=[templated_rds_secret.secret_full_arn],
             actions=["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret"]
         ))
 
-    self.rds_mysql_instance = rds.DatabaseInstance(self,
+        self.rds_mysql_instance = rds.DatabaseInstance(self,
                                                    "rds_mysql_instance",
                                                    engine=rds.DatabaseInstanceEngine.mysql(version=rds.MysqlEngineVersion.VER_8_0_32),
                                                    vpc_subnets=ec2.SubnetSelection(subnets=subnets),
@@ -160,7 +160,7 @@ class ApplicationStack(Stack):
                                                    storage_encrypted = True,
                                                    storage_type=rds.StorageType.GP2)
 
-    secretsmanager.SecretRotation(self, "SecretRotation",
+        secretsmanager.SecretRotation(self, "SecretRotation",
                                   application=secretsmanager.SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
                                   secret=templated_rds_secret,
                                   target=self.rds_mysql_instance,
@@ -168,145 +168,145 @@ class ApplicationStack(Stack):
                                   exclude_characters=" %+~`#$&*()|[]{}:;<>?!'/@\"\\"
                                   )
 
-    ####################################
-    ##
-    ## Kinesis Resources
-    ##
-    ####################################
-    kinesis_stream = kinesis.Stream(self,
-                                    "kinesis_stream",
-                                    shard_count=1)
+        ####################################
+        ##
+        ## Kinesis Resources
+        ##
+        ####################################
+        kinesis_stream = kinesis.Stream(self,
+                                        "kinesis_stream",
+                                        shard_count=1)
 
-    self.dms_role.add_to_policy(aws_iam.PolicyStatement(
-        resources=[kinesis_stream.stream_arn],
-        actions=["kinesis:PutRecord",
-                 "kinesis:PutRecords",
-                 "kinesis:DescribeStream"]
-    ))
+        self.dms_role.add_to_policy(iam.PolicyStatement(
+            resources=[kinesis_stream.stream_arn],
+            actions=["kinesis:PutRecord",
+                     "kinesis:PutRecords",
+                     "kinesis:DescribeStream"]
+        ))
 
-    # ####################################
-    # ##
-    # ## DMS Resources
-    # ##
-    # ####################################
+        # ####################################
+        # ##
+        # ## DMS Resources
+        # ##
+        # ####################################
 
-    dms_source_endpoint = dms.CfnEndpoint(self,
-                                          "RdsEndpoint",
-                                          endpoint_type="source",
-                                          engine_name="mysql",
-                                          my_sql_settings=dms.CfnEndpoint.MySqlSettingsProperty(
-                                              secrets_manager_access_role_arn=self.dms_role.role_arn,
-                                              secrets_manager_secret_id=templated_rds_secret.secret_full_arn
-                                          )
-                                          )
+        dms_source_endpoint = dms.CfnEndpoint(self,
+                                              "RdsEndpoint",
+                                              endpoint_type="source",
+                                              engine_name="mysql",
+                                              my_sql_settings=dms.CfnEndpoint.MySqlSettingsProperty(
+                                                  secrets_manager_access_role_arn=self.dms_role.role_arn,
+                                                  secrets_manager_secret_id=templated_rds_secret.secret_full_arn
+                                              )
+                                              )
 
-    dms_target_endpoint = dms.CfnEndpoint(self,
-                                          "KinesisEndpoint",
-                                          endpoint_type="target",
-                                          engine_name="kinesis",
-                                          kinesis_settings = dms.CfnEndpoint.KinesisSettingsProperty(
-                                              message_format="JSON",
-                                              service_access_role_arn=self.dms_role.role_arn,
-                                              stream_arn= kinesis_stream.stream_arn
-                                          )
-                                          )
+        dms_target_endpoint = dms.CfnEndpoint(self,
+                                              "KinesisEndpoint",
+                                              endpoint_type="target",
+                                              engine_name="kinesis",
+                                              kinesis_settings = dms.CfnEndpoint.KinesisSettingsProperty(
+                                                  message_format="JSON",
+                                                  service_access_role_arn=self.dms_role.role_arn,
+                                                  stream_arn= kinesis_stream.stream_arn
+                                              )
+                                              )
 
-    dms_replication_subnet_group = dms.CfnReplicationSubnetGroup(self, "DmsReplicationSubnetGroup",
-                                                                 replication_subnet_group_description = 'DMS Replication Subnet Group',
-                                                                 subnet_ids=cf.subnet_ids
-                                                                 )
+        dms_replication_subnet_group = dms.CfnReplicationSubnetGroup(self, "DmsReplicationSubnetGroup",
+                                                                     replication_subnet_group_description = 'DMS Replication Subnet Group',
+                                                                     subnet_ids=cf.subnet_ids
+                                                                     )
 
-    dms_replication_subnet_group.node.add_dependency(dms_vpc_role)
+        dms_replication_subnet_group.node.add_dependency(dms_vpc_role)
 
-    dms_replication_instance = dms.CfnReplicationInstance(self, "DmsReplicationInstance",
-                                                          replication_instance_class="dms.t3.medium",
-                                                          replication_subnet_group_identifier = dms_replication_subnet_group.ref,#.replication_subnet_group_identifier,
-                                                          allocated_storage=50,
-                                                          engine_version="3.4.7",
-                                                          multi_az=False,
-                                                          publicly_accessible=False
-                                                          )
+        dms_replication_instance = dms.CfnReplicationInstance(self, "DmsReplicationInstance",
+                                                              replication_instance_class="dms.t3.medium",
+                                                              replication_subnet_group_identifier = dms_replication_subnet_group.ref,#.replication_subnet_group_identifier,
+                                                              allocated_storage=50,
+                                                              engine_version="3.4.7",
+                                                              multi_az=False,
+                                                              publicly_accessible=False
+                                                              )
 
-    dms_replication_instance.node.add_dependency(dms_vpc_role)
+        dms_replication_instance.node.add_dependency(dms_vpc_role)
 
-    dms_replication_task = dms.CfnReplicationTask(self, "DmsReplicationTask",
-                                                  migration_type="full-load-and-cdc",
-                                                  replication_instance_arn=dms_replication_instance.ref,
-                                                  source_endpoint_arn=dms_source_endpoint.ref,
-                                                  table_mappings='''{ \"rules\": [ { \"rule-type\": \"selection\", 
-          \"rule-id\": \"1\", \"rule-name\": \"1\", \"object-locator\": 
-            { \"schema-name\": \"sys\", \"table-name\": \"%\" }, \"rule-action\": \"exclude\" }, 
-            { \"rule-type\": \"selection\", \"rule-id\": \"2\", 
-            \"rule-name\": \"2\", \"object-locator\": { \"schema-name\": \"pinpoint-test-db\", 
-            \"table-name\": \"customer_tb\" }, \"rule-action\": \"include\" } ] }''',
-                                                  target_endpoint_arn=dms_target_endpoint.ref
-                                                  )
+        dms_replication_task = dms.CfnReplicationTask(self, "DmsReplicationTask",
+                                                      migration_type="full-load-and-cdc",
+                                                      replication_instance_arn=dms_replication_instance.ref,
+                                                      source_endpoint_arn=dms_source_endpoint.ref,
+                                                      table_mappings='''{ \"rules\": [ { \"rule-type\": \"selection\", 
+              \"rule-id\": \"1\", \"rule-name\": \"1\", \"object-locator\": 
+                { \"schema-name\": \"sys\", \"table-name\": \"%\" }, \"rule-action\": \"exclude\" }, 
+                { \"rule-type\": \"selection\", \"rule-id\": \"2\", 
+                \"rule-name\": \"2\", \"object-locator\": { \"schema-name\": \"pinpoint-test-db\", 
+                \"table-name\": \"customer_tb\" }, \"rule-action\": \"include\" } ] }''',
+                                                      target_endpoint_arn=dms_target_endpoint.ref
+                                                      )
 
-    ####################################
-    ##
-    ## Pinpoint Project
-    ##
-    ####################################
-    pinpoint_app = pinpoint.CfnApp(self,
-                                   "pinpoint_project",
-                                   name=f"{cf.namespace}-pinpoint-project")
+        ####################################
+        ##
+        ## Pinpoint Project
+        ##
+        ####################################
+        pinpoint_app = pinpoint.CfnApp(self,
+                                       "pinpoint_project",
+                                       name=f"{cf.namespace}-pinpoint-project")
 
-    ####################################
-    ##
-    ## Lambda Functions
-    ##
-    ####################################
+        ####################################
+        ##
+        ## Lambda Functions
+        ##
+        ####################################
 
-    lambda_inbound_function = aws_lambda.Function(self, "lambda_inbound_function",
-                                                  runtime=aws_lambda.Runtime.PYTHON_3_9,
-                                                  handler="index.handler",
-                                                  code=aws_lambda.Code.from_asset("./scripts/lambda/inbound"),
-                                                  role=lambda_execution_role,
-                                                  timeout=Duration.seconds(900),
-                                                  environment={
-                                                      "region": f"{Aws.REGION}",
-                                                      "pinpointId": pinpoint_app.ref
-                                                  }
-                                                  )
+        lambda_inbound_function = aws_lambda.Function(self, "lambda_inbound_function",
+                                                      runtime=aws_lambda.Runtime.PYTHON_3_9,
+                                                      handler="index.handler",
+                                                      code=aws_lambda.Code.from_asset("./scripts/lambda/inbound"),
+                                                      role=lambda_execution_role,
+                                                      timeout=Duration.seconds(900),
+                                                      environment={
+                                                          "region": f"{Aws.REGION}",
+                                                          "pinpointId": pinpoint_app.ref
+                                                      }
+                                                      )
 
-    lambda_inbound_function.add_event_source(aws_lambda_event_sources.KinesisEventSource(
-        kinesis_stream,
-        batch_size=1,
-        starting_position=aws_lambda.StartingPosition.LATEST
-    ))
+        lambda_inbound_function.add_event_source(aws_lambda_event_sources.KinesisEventSource(
+            kinesis_stream,
+            batch_size=1,
+            starting_position=aws_lambda.StartingPosition.LATEST
+        ))
 
-    lambda_outbound_function = aws_lambda.Function(self, "lambda_outbound_function",
-                                                   runtime=aws_lambda.Runtime.PYTHON_3_9,
-                                                   handler="index.handler",
-                                                   code=aws_lambda.Code.from_asset("./scripts/lambda/outbound"),
-                                                   role=lambda_execution_role,
-                                                   timeout=Duration.seconds(900)
-                                                   )
+        lambda_outbound_function = aws_lambda.Function(self, "lambda_outbound_function",
+                                                       runtime=aws_lambda.Runtime.PYTHON_3_9,
+                                                       handler="index.handler",
+                                                       code=aws_lambda.Code.from_asset("./scripts/lambda/outbound"),
+                                                       role=lambda_execution_role,
+                                                       timeout=Duration.seconds(900)
+                                                       )
 
-    lambda_outbound_function.add_permission("LambdaInvocation",
-                                            principal=iam.ServicePrincipal(f'pinpoint.{Aws.REGION}.amazonaws.com'),
-                                            action ="lambda:InvokeFunction",
-                                            source_arn=f'arn:aws:mobiletargeting:{Aws.REGION}:{Aws.ACCOUNT_ID}:apps/*'
-                                            )
+        lambda_outbound_function.add_permission("LambdaInvocation",
+                                                principal=iam.ServicePrincipal(f'pinpoint.{Aws.REGION}.amazonaws.com'),
+                                                action ="lambda:InvokeFunction",
+                                                source_arn=f'arn:aws:mobiletargeting:{Aws.REGION}:{Aws.ACCOUNT_ID}:apps/*'
+                                                )
 
 
-    ####################################
-    ##
-    ## Cfn Output
-    ##
-    ####################################
+        ####################################
+        ##
+        ## Cfn Output
+        ##
+        ####################################
 
-    CfnOutput(self, "RDS_Secret_Name",
-              value       = templated_rds_secret.secret_name,
-              description = "Secret Name for RDS MySQL Instance"
-              )
-    CfnOutput(self, "Pinpoint_Project_Id",
-              value       = pinpoint_app.ref,
-              description = "Pinpoint Project Id"
-              )
+        CfnOutput(self, "RDS_Secret_Name",
+                  value       = templated_rds_secret.secret_name,
+                  description = "Secret Name for RDS MySQL Instance"
+                  )
+        CfnOutput(self, "Pinpoint_Project_Id",
+                  value       = pinpoint_app.ref,
+                  description = "Pinpoint Project Id"
+                  )
 
-    CfnOutput(self, "Pinpoint_Project_Name",
-              value       = pinpoint_app.name,
-              description = "Pinpoint Project Name"
-              )
-                                      
+        CfnOutput(self, "Pinpoint_Project_Name",
+                  value       = pinpoint_app.name,
+                  description = "Pinpoint Project Name"
+                  )
+
