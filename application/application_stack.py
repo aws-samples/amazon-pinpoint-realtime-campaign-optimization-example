@@ -60,17 +60,17 @@ class ApplicationStack(Stack):
                                        subnets=subnets)
                                    )
 
-        # vpc.add_interface_endpoint("SecretsManagerEndPoint",
-        #                            service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.secretsmanager'),
-        #                            subnets=ec2.SubnetSelection(
-        #                                subnets=subnets)
-        #                            )
-        #
-        # vpc.add_interface_endpoint("KmsEndPoint",
-        #                            service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.kms'),
-        #                            subnets=ec2.SubnetSelection(
-        #                                subnets=subnets)
-        #                            )
+        vpc.add_interface_endpoint("SecretsManagerEndPoint",
+                                   service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.secretsmanager'),
+                                   subnets=ec2.SubnetSelection(
+                                       subnets=subnets)
+                                   )
+
+        vpc.add_interface_endpoint("KmsEndPoint",
+                                   service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.kms'),
+                                   subnets=ec2.SubnetSelection(
+                                       subnets=subnets)
+                                   )
 
         ####################################
         ##
@@ -139,7 +139,7 @@ class ApplicationStack(Stack):
 
         self.dms_role.add_to_policy(iam.PolicyStatement(
             resources=[templated_rds_secret.secret_full_arn],
-            actions=["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret"]
+            actions=["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret","secretsmanager:ListSecrets"]
         ))
 
         self.rds_mysql_instance = rds.DatabaseInstance(self,
