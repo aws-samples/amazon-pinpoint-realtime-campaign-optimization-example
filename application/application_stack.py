@@ -56,18 +56,21 @@ class ApplicationStack(Stack):
 
         vpc.add_interface_endpoint("KinesisEndPoint",
                                    service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.kinesis-streams'),
+                                   private_dns_enabled = True,
                                    subnets=ec2.SubnetSelection(
                                        subnets=subnets)
                                    )
 
         vpc.add_interface_endpoint("SecretsManagerEndPoint",
                                    service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.secretsmanager'),
+                                   private_dns_enabled = True,
                                    subnets=ec2.SubnetSelection(
                                        subnets=subnets)
                                    )
 
         vpc.add_interface_endpoint("KmsEndPoint",
                                    service=ec2.InterfaceVpcEndpointService(f'com.amazonaws.{Aws.REGION}.kms'),
+                                   private_dns_enabled = True,
                                    subnets=ec2.SubnetSelection(
                                        subnets=subnets)
                                    )
